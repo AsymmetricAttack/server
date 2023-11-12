@@ -3,7 +3,10 @@ import cors from "cors";
 import http from "http";
 import { Server } from "socket.io";
 import { Player } from "./models/player.js";
-import { pack } from "./services/socket.service.js";
+import { pack, packCSV } from "./services/socket.service.js";
+import { envConfig } from "./configs/root.config.js";
+import { Game } from "./models/game.js";
+import { shuffle } from "./services/helper.service.js";
 
 const app = express();
 app.use(cors());
@@ -18,6 +21,10 @@ app.get("/", (req, res) => {
 // players: {socketId: Player()}
 const playerIds = [];
 let playerEntities = {};
+let bigs = 0;
+let littles = 0; 
+
+const gameState = new Game();
 
 io.on("connection", socket => {
     // init player on server
@@ -25,7 +32,29 @@ io.on("connection", socket => {
     playerEntities[socket.id] = new Player();
     console.log(socket.id + "Connected: " + playerIds.length + " Connections");
     io.emit("new player", JSON.stringify({playerData: pack(playerEntities)}));
+    
+    // send game state every second
+    setTimeout(() => {
+        if (gameState.gamestage == 0) {
+            gameState.gamestage = 1; // set to started
+            gameState.timeremaining = 60 * 3; // 3 min
+            gameState.map = Math.floor(Math.random() * 3); // random map
+        };
+    },15000)
+    setInterval(() => {
+        // socket.emit("game-state", JSON.stringify({gameData: gameState}));
+        socket.emit("game-state", gameState.toCSV());
+        gameState.timeremaining -= 1;
+        console.log(gameState)
+    },
+    800)
 
+    // Check if enough players.. then set game
+    if (gameState.gamestage == 0 && playerIds.length == envConfig.match_players && littles > 0 && bigs >= envConfig.min_bigs) {
+        gameState.gamestage = 1; // set to started
+        gameState.timeremaining = 60 * 3; // 3 min
+        gameState.map = Math.floor(Math.random() * 3); // random map
+    }
     // send id
     socket.on("get-id", () => {
         console.log("client looking for id");
@@ -36,8 +65,15 @@ io.on("connection", socket => {
     socket.on("type", (typeString) => {
         console.log(socket.id + " set device type as: " + typeString);
         console.log("Setting Device type!!!!!", playerEntities[socket.id]);
+        if(typeString == "console") {
+            console.log("Bigs: " + ++bigs)
+        } else {
+            console.log("littles: " + ++littles);
+        }
         playerEntities[socket.id].device = typeString;
         socket.send(JSON.stringify({singlePlayer: playerEntities[socket.id]}));
+        
+
     })
 
     // received name
@@ -47,13 +83,15 @@ io.on("connection", socket => {
         io.emit("state", JSON.stringify({playerData: pack(playerEntities)}));
     })
 
+    // host ready
+
     // received action
     socket.on("state", (jsonPlayer) => {
         const player = JSON.parse(jsonPlayer);
-        console.log("state", player);
-        console.log("entities: ", playerEntities);
+        console.log("moving");
         playerEntities = {...playerEntities , [socket.id]: player };
-        io.emit("update", JSON.stringify({playerData: pack(playerEntities)}));
+        // io.emit("update", JSON.stringify({playerData: pack(playerEntities)}));
+        io.emit("update", packCSV(playerEntities.join(" ")));
     })
 
     // projectile
@@ -65,12 +103,15 @@ io.on("connection", socket => {
     
     // disconnection
     socket.on("disconnect", () => {
-        console.log (socket.id + " disconnected")
+        console.log (socket.id + " disconnected");
+        console.log(playerIds.length + " Connections");
         const indexToDelete = playerIds.indexOf(socket.id)
         playerIds.splice(indexToDelete, 1);
         delete playerEntities[socket.id];
     })
 })
+
+
 
 server.listen("3000", () => {
     console.log("listening on port 3000");
