@@ -84,8 +84,9 @@ io.on("connection", socket => {
     // received action
     socket.on("state", (jsonPlayer) => {
         const player = JSON.parse(jsonPlayer);
-        playerEntities = {...playerEntities , [socket.id]: player };
+        playerEntities = {...playerEntities , [socket.id]: {id: socket.id, ...player} };
         // io.emit("update", JSON.stringify({playerData: pack(playerEntities)}));
+        console.log(playerEntities[socket.id]);
         io.emit("update", packCSV(playerEntities).join(" "));
     })
 
