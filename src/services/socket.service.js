@@ -7,9 +7,8 @@ function packCSV(entityArray) {
     return Object.values(entityArray).map(player => {
         let playerValuesArray = Object.values(player);
         // output  = player.id + "," + player.device + "," + player.positionx + "," + player.positiony + "," + player.positionz + "," + player.rotationx + "," + player.rotationy + "," + player.rotationz + "," +
-        //     player.health + "," + player.score + "," + player.team + "," + player.username;
-        console.log(player.id + "" + playerValuesArray.join(","))
-        return player.id + "" + playerValuesArray.join(",");
+        // player.health + "," + player.score + "," + player.team + "," + player.username;
+        return playerValuesArray.join(",");
     })
 
 }

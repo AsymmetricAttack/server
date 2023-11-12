@@ -29,7 +29,7 @@ const gameState = new Game();
 io.on("connection", socket => {
     // init player on server
     playerIds.push(socket.id);
-    playerEntities[socket.id] = new Player();
+    playerEntities[socket.id] = new Player(socket.id);
     console.log(socket.id + "Connected: " + playerIds.length + " Connections");
     io.emit("new player", JSON.stringify({playerData: pack(playerEntities)}));
     
@@ -45,7 +45,6 @@ io.on("connection", socket => {
         // socket.emit("game-state", JSON.stringify({gameData: gameState}));
         socket.emit("game-state", gameState.toCSV());
         gameState.timeremaining -= 1;
-        console.log(gameState)
     },
     800)
 
@@ -57,14 +56,11 @@ io.on("connection", socket => {
     }
     // send id
     socket.on("get-id", () => {
-        console.log("client looking for id");
         socket.emit("id", JSON.stringify({id: socket.id}));
     })
 
     // received type
     socket.on("type", (typeString) => {
-        console.log(socket.id + " set device type as: " + typeString);
-        console.log("Setting Device type!!!!!", playerEntities[socket.id]);
         if(typeString == "console") {
             console.log("Bigs: " + ++bigs)
         } else {
@@ -78,9 +74,9 @@ io.on("connection", socket => {
 
     // received name
     socket.on("name",(nameString) => {
-        console.log(socket.id + " set name as: " + nameString);
         playerEntities[socket.id].name = nameString;
         io.emit("state", JSON.stringify({playerData: pack(playerEntities)}));
+        io.emit("state", );
     })
 
     // host ready
@@ -88,16 +84,14 @@ io.on("connection", socket => {
     // received action
     socket.on("state", (jsonPlayer) => {
         const player = JSON.parse(jsonPlayer);
-        console.log("moving");
         playerEntities = {...playerEntities , [socket.id]: player };
         // io.emit("update", JSON.stringify({playerData: pack(playerEntities)}));
-        io.emit("update", packCSV(playerEntities.join(" ")));
+        io.emit("update", packCSV(playerEntities).join(" "));
     })
 
     // projectile
     socket.on("projectile", (jsonProjectile) => {
         const projectile = JSON.parse(jsonProjectile);
-        console.log("rocket launched!");
         socket.broadcast.emit("launch-projectile", JSON.stringify({projectileData: projectile}));
     })
     
